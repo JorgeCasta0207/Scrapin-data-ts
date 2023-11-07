@@ -17,6 +17,29 @@ puppeteer.launch({ headless: false }).then(async (browser) => {
     await page.waitForNavigation({ waitUntil: 'load' });
     await page.waitForSelector('table.programFilterList');
     await page.screenshot({ path: './table.png', fullPage: true });
+    const data = await page.$$eval('table.programFilterList tbody tr', (rows) => {
+        return rows.map(row => {
+            if (row.classList.contains('odd') || row.classList.contains('even')) {
+                const tds = row.querySelectorAll('td');
+                return {
+                    name: tds[1].innerText,
+                    area: tds[2].innerText,
+                    campus: tds[3].innerText,
+                    length: tds[5].innerText,
+                };
+            }
+            else {
+                return null;
+            }
+        })
+            .filter((row) => row);
+    });
+    console.log({ data });
+    await writeFile('./data/courseDetails.JSON', JSON.stringify(data), 'utf-8', (err) => {
+        if (err)
+            throw err;
+        console.log('Data Has Been Saved :)');
+    });
     console.log(`All done, check the screenshots. ✨`);
     await browser.close();
 });
