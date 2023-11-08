@@ -11,33 +11,43 @@ puppeteer.use(
   })
 )
 
-const url = 'https://www.modbee.com/news/local/';
+const SBR_WS_ENDPOINT = 'wss://brd-customer-hl_c03c76ab-zone-scraping_browser:q6smmrswbvs0@brd.superproxy.io:9222';
+
+async function main() {
+    console.log('Connecting to Scraping Browser...');
+    const browser = await puppeteer.connect({
+        browserWSEndpoint: SBR_WS_ENDPOINT,
+    });
+    try {
+        const page = await browser.newPage();
+        console.log('Connected! Navigating to https://www.modbee.com/news/local/...');
+        await page.goto('https://www.modbee.com/news/local/');
+
+        const selector = '.digest'
+
+        await page.waitForSelector(selector);
+        const el = await page.$(selector);
+
+        const text = await el.evaluate(e => e.innerHTML);
+      
 
 
+        console.log('Navigated! Scraping page content...');
+        // const html = await page.content();
+        console.log(text);
 
-puppeteer.launch({ headless: false }).then(async browser => {
-  const page = await browser.newPage()
-  page.setDefaultNavigationTimeout(2 * 60 * 1000);
-  await page.setViewport({ width: 800, height: 600 });
+        await writeFile('./data/ModBee.JSON', JSON.stringify(text), 'utf-8', (err) => {
+          if(err) throw err;
+          console.log('HTML Data Saved Babbby!');
+        });
 
 
-  await page.goto(url);
-
-  await page.evaluate(() => {
-    const link = document.querySelector('h3.h1 a[href="https://www.modbee.com/news/local/article281504428.html#storylink=mainstage_lead"]');
-    if (link instanceof HTMLAnchorElement) {
-      link.click();
-    } else {
-      console.error('Not an anchor element...');
+    } finally {
+        await browser.close();
     }
-  })
+}
 
-  // await page.waitForNavigation({ waitUntil: 'load'});
-  
-
-  await page.screenshot({ path: 'Test-page.jpg', fullPage: true });
-  console.log('All Done Pimp!✅');
-
-  await browser.close();
-
-})
+main().catch(err => {
+    console.error(err.stack || err);
+    process.exit(1);
+});
