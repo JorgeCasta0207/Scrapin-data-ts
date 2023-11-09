@@ -17,17 +17,24 @@ async function main() {
         const page = await browser.newPage();
         console.log('Connected! Navigating to https://www.modbee.com/news/local/...');
         await page.goto('https://www.modbee.com/news/local/');
-        const selector = '.digest';
-        await page.waitForSelector(selector);
-        const el = await page.$(selector);
-        const text = await el.evaluate(e => e.innerHTML);
-        console.log('Navigated! Scraping page content...');
-        // const html = await page.content();
-        console.log(text);
-        await writeFile('./data/ModBee.JSON', JSON.stringify(text), 'utf-8', (err) => {
+        const articleLinks = await page.$$eval('article.package h3 a', links => links.map(link => link.getAttribute('href')));
+        const articleContents = [];
+        for (let link of articleLinks) {
+            console.log('Navigating to:', link);
+            await page.goto(link);
+            console.log('Scraping content from:', link);
+            const content = await page.evaluate(() => {
+                const paragraphs = Array.from(document.querySelectorAll('article.paper.story-body p'));
+                return paragraphs.map(p => p.textContent);
+            });
+            articleContents.push({ link, content });
+        }
+        const date = new Date().toISOString().replace(/:/g, '-');
+        const fileName = `Modbee_${date}.json`;
+        await writeFile(`./data/${fileName}`, JSON.stringify(articleContents), 'utf-8', (err) => {
             if (err)
                 throw err;
-            console.log('HTML Data Saved Babbby!');
+            console.log('All Article Data Saved✅');
         });
     }
     finally {
