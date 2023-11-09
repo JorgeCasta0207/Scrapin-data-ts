@@ -1,8 +1,6 @@
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 puppeteer.use(StealthPlugin());
-const { writeFile } = require('fs');
-
 const { DEFAULT_INTERCEPT_RESOLUTION_PRIORITY } = require('puppeteer');
 const AdBlocker = require('puppeteer-extra-plugin-adblocker')
 puppeteer.use(
@@ -10,7 +8,9 @@ puppeteer.use(
     interceptResolutionPriority: DEFAULT_INTERCEPT_RESOLUTION_PRIORITY
   })
 )
+const { writeFile } = require('fs');
 
+// BrightData Setup / Endpoint
 const SBR_WS_ENDPOINT = 'wss://brd-customer-hl_c03c76ab-zone-scraping_browser:q6smmrswbvs0@brd.superproxy.io:9222';
 
 async function main() {
@@ -23,14 +23,17 @@ async function main() {
         console.log('Connected! Navigating to https://www.modbee.com/news/local/...');
         await page.goto('https://www.modbee.com/news/local/');
 
-        const articleLinks = await page.$$eval('article.package h3 a', links => links.map(link => link.getAttribute('href')));
+
+        // Mapping all Trending Article Links 
+        const TrendingLinks = await page.$$eval('article.package h3 a', links => links.map(link => link.getAttribute('href')));
         const articleContents = [];
 
-        for (let link of articleLinks){
+
+        // Going into each link and pulling article text
+        for (let link of TrendingLinks){
           console.log('Navigating to:', link);
           await page.goto(link);
           console.log('Scraping content from:', link);
-
 
           const content = await page.evaluate(() => {
             const paragraphs = Array.from(document.querySelectorAll('article.paper.story-body p'));
@@ -40,6 +43,7 @@ async function main() {
           articleContents.push({ link, content });
         }
          
+        // Formatting Data Into JSON
         const date = new Date().toISOString().replace(/:/g, '-');
         const fileName = `Modbee_${date}.json`;
         await writeFile(`./data/${fileName}`, JSON.stringify(articleContents), 'utf-8', (err) => {
